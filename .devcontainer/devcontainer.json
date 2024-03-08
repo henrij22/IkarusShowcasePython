@@ -1,24 +1,27 @@
 {
-	"image": "ikarusproject/ikarus:latest",
-	"containerUser": "root",
-	"customizations": {
-		"vscode": {
-			"extensions": [
-				"ms-vscode.cpptools",
-				"ms-vscode.cmake-tools",
-				"ms-vscode.cpptools-extension-pack",
-				"ms-toolsai.jupyter",
-				"ms-python.python",
-				"ms-python.black-formatter"
-			],
-			"settings": {
-				"python.pythonPath": "/dune/dune-common/build-cmake/dune-env/bin/python",
-				"python.defaultInterpreterPath": "/dune/dune-common/build-cmake/dune-env/bin/python",
-				"python.formatting.provider": "ms-python.black-formatter",
-				"python.linting.enabled": true,
-				"python.edit"
+	"dockerComposeFile": [
+		"../docker-compose.yml"
+	  ],
+	  "workspaceFolder": "/workspaces/ikarus",
+		"service": "OpenIkarusContainer",
+		"shutdownAction": "stopCompose",
+		"customizations": {
+			"vscode": {
+				"extensions": [
+					"ms-vscode.cpptools",
+					"ms-vscode.cmake-tools",
+					"ms-vscode.cpptools-extension-pack",
+					"ms-toolsai.jupyter",
+					"ms-python.python",
+					"ms-python.black-formatter"
+				],
+				"settings": {
+					"python.pythonPath": "/dune/dune-common/build-cmake/dune-env/bin/python",
+					"python.defaultInterpreterPath": "/dune/dune-common/build-cmake/dune-env/bin/python",
+					"python.formatting.provider": "ms-python.black-formatter",
+					"python.linting.enabled": true
+				}
 			}
-		}
-	},
-	"postCreateCommand": "pip install -r requirements.txt --verbose --upgrade --no-build-isolation && pip install --pre pyikarus --verbose --upgrade --no-build-isolation"
+		},
+		"postCreateCommand": "pip install -r requirements.txt --verbose --upgrade --no-build-isolation && pip install --pre pyikarus --verbose --upgrade --no-build-isolation"
 }
