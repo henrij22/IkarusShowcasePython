@@ -11,11 +11,3 @@ services:
     volumes: 
       - .:/workspaces/ikarus
     working_dir: /workspaces/ikarus
-  OpenIkarusContainer-clang:
-    image: ikarusproject/ikarus-clang:latest
-    entrypoint: /bin/bash
-    tty: true
-    user: root
-    volumes: 
-      - .:/workspaces/ikarus
-    working_dir: /workspaces/ikarus

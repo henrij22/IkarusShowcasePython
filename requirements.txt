@@ -2,4 +2,5 @@
 scikit-build
 pyvista
 pyikarus
-#dune-iga
+pandas
+tabulate

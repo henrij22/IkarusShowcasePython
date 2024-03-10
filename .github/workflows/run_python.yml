@@ -1,0 +1,23 @@
+name: Python
+
+on:
+  push
+  
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ikarusproject/ikarus:latest
+      options: --memory-swap="20g" --memory="20g" --cpus="2"
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt --verbose --upgrade --no-build-isolation
+        pip install --pre pyikarus --verbose --upgrade --no-build-isolation
+
+    - name: Run tests
+      run: |
+        python test/test.py
