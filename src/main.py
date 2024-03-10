@@ -28,7 +28,7 @@ LAMBDA_LOAD = 1.0
 THICKNESS = 0.1  # 10 cm
 
 
-def run_simulation(deg: int, refine: int):
+def run_simulation(deg: int, refine: int, testing=False):
     reader = {
         "reader": readeriga.json,
         "file_path": "input/plate_holes.ibra",
@@ -111,6 +111,9 @@ def run_simulation(deg: int, refine: int):
                 f"Solution not found after {k} iterations, norm: {sp.linalg.norm(deltad)}"
             )
 
+    if testing:
+        return 0, 0
+    
     dFull = assembler.createFullVector(d)
     dispFunc = flatBasis.asFunction(dFull)
 
