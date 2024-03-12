@@ -71,25 +71,70 @@ def run_simulation(deg: int, refine: int, testing=False):
         r = assembler.getReducedVector(req)
         k = assembler.getReducedMatrix(req)
         return [r, k]
+    
+    lambdaLoad = iks.ValueWrapper(LAMBDA_LOAD)
+    def energy(dRedInput):
+        reqL = ikarus.FERequirements()
+        reqL.addAffordance(iks.ScalarAffordances.mechanicalPotentialEnergy)
+        reqL.insertParameter(iks.FEParameter.loadfactor, lambdaLoad)
 
-    maxiter = 300
-    abs_tolerance = 1e-9
+        dBig = assembler.createFullVector(dRedInput)
+        reqL.insertGlobalSolution(iks.FESolutions.displacement, dBig)
+        return assembler.getScalar(reqL)
+
+    def gradient(dRedInput):
+        reqL = ikarus.FERequirements()
+        reqL.addAffordance(iks.VectorAffordances.forces)
+        reqL.insertParameter(iks.FEParameter.loadfactor, lambdaLoad)
+
+        dBig = assembler.createFullVector(dRedInput)
+        reqL.insertGlobalSolution(iks.FESolutions.displacement, dBig)
+        return assembler.getReducedVector(reqL)
+
+    def hess(dRedInput):
+        reqL = ikarus.FERequirements()
+        reqL.addAffordance(iks.MatrixAffordances.stiffness)
+        reqL.insertParameter(iks.FEParameter.loadfactor, lambdaLoad)
+
+        dBig = assembler.createFullVector(dRedInput)
+        reqL.insertGlobalSolution(iks.FESolutions.displacement, dBig)
+        return assembler.getReducedMatrix(reqL).todense()
+
     d = np.zeros(assembler.reducedSize())
-    for k in range(maxiter):
-        R, K = assemble(d)
-        r_norm = sp.linalg.norm(R)
+    res = sp.optimize.minimize(
+        energy,
+        method="trust-exact",
+        x0=d,
+        jac=gradient,
+        hess=hess,
+        tol=1e-8,
+        options = {"maxiter": 50}
+    )
+    d = res.x
+    iterations = res.nit
+    if res.success:
+        print(f"Solution found after {iterations} iterations, residual norm: {sp.linalg.norm(res.jac)}")
+    else:
+        print(f"Solution not found after {iterations} iterations, residual norm: {sp.linalg.norm(res.jac)}")
 
-        deltad = sp.sparse.linalg.spsolve(K, R)
-        d -= deltad
-        if r_norm < abs_tolerance:
-            print(
-                f"Solution found after {k} iterations, norm: {r_norm}"
-            )
-            break
-        if k == maxiter:
-            print(
-                f"Solution not found after {k} iterations, norm: {r_norm}"
-            )
+    # maxiter = 50
+    # abs_tolerance = 1e-9
+    # 
+    # for k in range(maxiter):
+    #     R, K = assemble(d)
+    #     r_norm = sp.linalg.norm(R)
+
+    #     deltad = sp.sparse.linalg.spsolve(K, R)
+    #     d -= deltad
+    #     if r_norm < abs_tolerance:
+    #         print(
+    #             f"Solution found after {k} iterations, norm: {r_norm}"
+    #         )
+    #         break
+    #     if k == maxiter-1:
+    #         print(
+    #             f"Solution not found after {k} iterations, norm: {r_norm}"
+    #         )
 
     if testing:
         return 0, 0, 0
@@ -110,7 +155,7 @@ def run_simulation(deg: int, refine: int, testing=False):
     max_d = np.max(disp_z)
     print(f"Max d: {max_d}")
 
-    return max_d, k, assembler.reducedSize()
+    return max_d, iterations, assembler.reducedSize()
 
 
 def plot(filename):
@@ -132,6 +177,7 @@ if __name__ == "__main__":
 
     # degree: 2 to 4 (2 = quadratic) We need at least 2 for continuity
     # refine: 3 to 6
+        
 
     data = []
     for i in range(2, 5):
