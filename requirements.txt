@@ -1,6 +1,4 @@
-#ipykernel
 scikit-build
 pyvista
-pyikarus
 pandas
 tabulate

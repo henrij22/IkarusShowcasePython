@@ -1,31 +1,25 @@
-from nurbs_basis import globalBasis
-from fix_dirichlet import *
-
-from io import StringIO
-
-import pyvista as pv
-from tabulate import tabulate
-import pandas as pd
-import numpy as np
-import scipy as sp
+from pathlib import Path
+from time import process_time
 
 import ikarus as iks
-import ikarus.finite_elements
 import ikarus.assembler
 import ikarus.dirichlet_values
-
-from dune.vtk import vtkWriter
+import ikarus.finite_elements
+import numpy as np
+import pandas as pd
+import pyvista as pv
+import scipy as sp
 from dune.iga import IGAGrid
-from dune.generator.algorithm import run
-
-from dune.grid import gridFunction
 from dune.iga import reader as readeriga
-from dune.iga.basis import defaultGlobalBasis, Power, Nurbs
-
-from dune.vtk import vtkWriter
+from dune.iga.basis import Nurbs, Power
+from fix_dirichlet import fixDofFunction
+from nurbs_basis import globalBasis
+from tabulate import tabulate
 
 LAMBDA_LOAD = 1.0
 THICKNESS = 0.1  # 10 cm
+E_MOD = 1000
+NU = 0.0
 
 
 def run_simulation(deg: int, refine: int, testing=False):
@@ -43,25 +37,22 @@ def run_simulation(deg: int, refine: int, testing=False):
     flatBasis = basis.flat()
 
     ## Define Load
-    def volumeLoad(x, lambdaVal):
-        return np.array([0, 0, THICKNESS**3 * LAMBDA_LOAD])
+    def vL(x, lambdaVal):
+        return np.array([0, 0, 2 * THICKNESS**3 * lambdaVal])
 
     ## Define Dirichlet Boundary Conditions
     dirichletValues = iks.dirichletValues(flatBasis)
-
-    def fixDofs_lambda(basis_, dirichletFlags_):
-        run("fixStuff", StringIO(fixStuff), basis_, dirichletFlags_)
-
-    dirichletValues.fixDOFs(fixDofs_lambda)
+    dirichletValues.fixDOFs(fixDofFunction)
 
     ## Create Elements
+    vLoad = iks.finite_elements.volumeLoad3D(vL)
+    klShell = iks.finite_elements.kirchhoffLoveShell(
+        youngs_modulus=E_MOD, nu=NU, thickness=THICKNESS
+    )
     fes = []
     for e in gridView.elements:
-        fes.append(
-            iks.finite_elements.KirchhoffLoveShell(
-                basis, e, 1000, 0.0, THICKNESS, volumeLoad
-            )
-        )
+        fes.append(iks.finite_elements.makeFE(basis, klShell, vLoad))
+        fes[-1].bind(e)
 
     assembler = iks.assembler.sparseFlatAssembler(fes, dirichletValues)
 
@@ -70,60 +61,48 @@ def run_simulation(deg: int, refine: int, testing=False):
     )
 
     ## Solve non-linear Kirchhol-Love-Shell problem
-    def gradient(dRed_):
+    def assemble(dRed_):
         req = ikarus.FERequirements()
-        req.addAffordance(iks.VectorAffordances.forces)
+        req.addAffordance(iks.ScalarAffordances.mechanicalPotentialEnergy)
         lambdaLoad = iks.ValueWrapper(LAMBDA_LOAD)
         req.insertParameter(iks.FEParameter.loadfactor, lambdaLoad)
         dFull = assembler.createFullVector(dRed_)
         req.insertGlobalSolution(iks.FESolutions.displacement, dFull)
-
-        return assembler.getReducedVector(req)
-
-    def jacobian(dRed_):
-        req = ikarus.FERequirements()
-        req.addAffordance(iks.MatrixAffordances.stiffness)
-        lambdaLoad = iks.ValueWrapper(LAMBDA_LOAD)
-        req.insertParameter(iks.FEParameter.loadfactor, lambdaLoad)
-        dFull = assembler.createFullVector(dRed_)
-        req.insertGlobalSolution(iks.FESolutions.displacement, dFull)
-
-        return assembler.getReducedMatrix(req)
+        r = assembler.getReducedVector(req)
+        k = assembler.getReducedMatrix(req)
+        return [r, k]
 
     maxiter = 300
     abs_tolerance = 1e-9
     d = np.zeros(assembler.reducedSize())
     for k in range(maxiter):
-        R = gradient(d)
-        K = jacobian(d)
+        R, K = assemble(d)
         r_norm = sp.linalg.norm(R)
 
         deltad = sp.sparse.linalg.spsolve(K, R)
         d -= deltad
-        # print(k, sp.linalg.norm(deltad))
         if r_norm < abs_tolerance:
             print(
-                f"Solution found after {k} iterations, norm: {sp.linalg.norm(deltad)}"
+                f"Solution found after {k} iterations, norm: {r_norm}"
             )
             break
         if k == maxiter:
             print(
-                f"Solution not found after {k} iterations, norm: {sp.linalg.norm(deltad)}"
+                f"Solution not found after {k} iterations, norm: {r_norm}"
             )
 
     if testing:
-        return 0, 0
-    
+        return 0, 0, 0
+
     dFull = assembler.createFullVector(d)
     dispFunc = flatBasis.asFunction(dFull)
 
     vtkWriter = gridView.trimmedVtkWriter()
     vtkWriter.addPointData(dispFunc, name="displacement")
-
-    vtkWriter.write(name=f"out/result_d{deg}_r{refine}")
+    vtkWriter.write(name=f"{output_folder}/result_d{deg}_r{refine}")
 
     # Do some postprocessing with pyVista
-    mesh = pv.UnstructuredGrid(f"out/result_d{deg}_r{refine}.vtu")
+    mesh = pv.UnstructuredGrid(f"{output_folder}/result_d{deg}_r{refine}.vtu")
 
     # nodal displacements in z-Direction
     disp_z = mesh["displacement"][:, 2]
@@ -131,30 +110,46 @@ def run_simulation(deg: int, refine: int, testing=False):
     max_d = np.max(disp_z)
     print(f"Max d: {max_d}")
 
-    return max_d, k
+    return max_d, k, assembler.reducedSize()
 
 
-def postprocess():
-    pass
+def plot(filename):
     # Postprocessing with pyVista (doesnt seem to work within devcontainer)
 
-    # mesh = pv.UnstructuredGrid("out/result.vtu")
-    # plotter = pv.Plotter(off_screen=True, notebook=True)
-    # plotter.view_xy()
-    # plotter.add_mesh(mesh, scalars="displacement", component=2, show_edges=True)
-    # plotter.screenshot("out/displacement.png", transparent_background=True)
-    # grid_repr.plot(cpos='xy', scalars="displacement", component=2, show_edges=True)
+    mesh = pv.UnstructuredGrid(filename)
+    plotter = pv.Plotter(off_screen=True)
+    plotter.view_xy()
+    plotter.add_mesh(mesh, scalars="displacement", component=2, show_edges=True)
+    # plotter.show()
+    plotter.screenshot(f"{output_folder}/displacement.png", transparent_background=True)
 
 
 if __name__ == "__main__":
-    # degree: 1 to 4 (1 = linear)
+    output_folder = Path.cwd() / "output"
+
+    if not output_folder.exists():
+        Path.mkdir(output_folder)
+
+    # degree: 2 to 4 (2 = quadratic) We need at least 2 for continuity
     # refine: 3 to 6
 
     data = []
-    for i in range(1, 4):
-        for j in range(3, 6):
-            max_d, iterations = run_simulation(deg=i, refine=j)
-            data.append((i, j, max_d, iterations))
+    for i in range(2, 5):
+        for j in range(3, 7):
+            t1 = process_time()
+            max_d, iterations, dofs = run_simulation(deg=i, refine=j)
+            data.append((i, j, max_d, iterations, dofs, process_time() - t1))
 
-    df = pd.DataFrame(data, columns=["Degree", "Refinement", "max d", "iterations"])
-    print(tabulate(df, headers="keys", tablefmt="psql"))
+    df = pd.DataFrame(
+        data,
+        columns=["Degree", "Refinement", "max d", "iterations", "DOFs", "Compute time"],
+    )
+    print(
+        tabulate(
+            df,
+            headers="keys",
+            tablefmt="psql",
+            floatfmt=("g", "g", "g", "10.10f", "g", "g"),
+        )
+    )
+  

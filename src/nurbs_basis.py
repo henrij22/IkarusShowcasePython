@@ -1,20 +1,11 @@
-from dune.iga.basis import defaultGlobalBasis, Power, Lagrange, Nurbs
-import ikarus as iks
-import ikarus.finite_elements
-import ikarus.utils
-import ikarus.assembler
-import ikarus.dirichlet_values
-from ikarus import basis
-from dune.iga import (
-    IGAGrid,
-)
+from dune.iga.basis import defaultGlobalBasis
 
 from dune.generator.generator import SimpleGenerator
 from dune.iga.basis import preBasisTypeName
 from dune.common.hashit import hashIt
 
-# this is a stupied workaround since dune-function has a not very general impl of preBasis.
-# to support Nurbs() we have to do it ourselves, it creates a ikarus basis
+
+# this workaround is needed as the python interface for dune-functions is a bit to general, so we have to create a Ikarus BasisHandler ourself
 def globalBasis(gv, tree):
     generator = SimpleGenerator("BasisHandler", "Ikarus::Python")
 
