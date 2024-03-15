@@ -71,8 +71,9 @@ def run_simulation(deg: int, refine: int, testing=False):
         r = assembler.getReducedVector(req)
         k = assembler.getReducedMatrix(req)
         return [r, k]
-    
+
     lambdaLoad = iks.ValueWrapper(LAMBDA_LOAD)
+
     def energy(dRedInput):
         reqL = ikarus.FERequirements()
         reqL.addAffordance(iks.ScalarAffordances.mechanicalPotentialEnergy)
@@ -108,33 +109,18 @@ def run_simulation(deg: int, refine: int, testing=False):
         jac=gradient,
         hess=hess,
         tol=1e-8,
-        options = {"maxiter": 50}
+        options={"maxiter": 50},
     )
     d = res.x
     iterations = res.nit
     if res.success:
-        print(f"Solution found after {iterations} iterations, residual norm: {sp.linalg.norm(res.jac)}")
+        print(
+            f"Solution found after {iterations} iterations, residual norm: {sp.linalg.norm(res.jac)}"
+        )
     else:
-        print(f"Solution not found after {iterations} iterations, residual norm: {sp.linalg.norm(res.jac)}")
-
-    # maxiter = 50
-    # abs_tolerance = 1e-9
-    # 
-    # for k in range(maxiter):
-    #     R, K = assemble(d)
-    #     r_norm = sp.linalg.norm(R)
-
-    #     deltad = sp.sparse.linalg.spsolve(K, R)
-    #     d -= deltad
-    #     if r_norm < abs_tolerance:
-    #         print(
-    #             f"Solution found after {k} iterations, norm: {r_norm}"
-    #         )
-    #         break
-    #     if k == maxiter-1:
-    #         print(
-    #             f"Solution not found after {k} iterations, norm: {r_norm}"
-    #         )
+        print(
+            f"Solution not found after {iterations} iterations, residual norm: {sp.linalg.norm(res.jac)}"
+        )
 
     if testing:
         return 0, 0, 0
@@ -176,8 +162,7 @@ if __name__ == "__main__":
         Path.mkdir(output_folder)
 
     # degree: 2 to 4 (2 = quadratic) We need at least 2 for continuity
-    # refine: 3 to 6
-        
+    # refine: 3 to 6 
 
     data = []
     for i in range(2, 5):
@@ -198,4 +183,3 @@ if __name__ == "__main__":
             floatfmt=("g", "g", "g", "10.10f", "g", "g"),
         )
     )
-  
