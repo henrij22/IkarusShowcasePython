@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Henrik Jakob jakob@ibb.uni-stuttgart.de
+#
+# SPDX-License-Identifier: MIT
+
 from io import StringIO
 from dune.generator.algorithm import run
 

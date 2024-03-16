@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Henrik Jakob jakob@ibb.uni-stuttgart.de
+#
+# SPDX-License-Identifier: MIT
+
 from pathlib import Path
 from time import process_time
 
@@ -162,7 +166,7 @@ if __name__ == "__main__":
         Path.mkdir(output_folder)
 
     # degree: 2 to 4 (2 = quadratic) We need at least 2 for continuity
-    # refine: 3 to 6 
+    # refine: 3 to 6
 
     data = []
     for i in range(2, 5):

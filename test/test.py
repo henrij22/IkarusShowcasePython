@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Henrik Jakob jakob@ibb.uni-stuttgart.de
+#
+# SPDX-License-Identifier: MIT
+
 import sys
 
 sys.path.append("src/")

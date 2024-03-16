@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Henrik Jakob jakob@ibb.uni-stuttgart.de
+#
+# SPDX-License-Identifier: MIT
+
 from dune.iga.basis import defaultGlobalBasis
 
 from dune.generator.generator import SimpleGenerator
